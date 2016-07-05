@@ -1,0 +1,5 @@
+oauth:
+  consumer_key: <INSERT YOUR KEY HERE>
+  consumer_secret: <INSERT YOUR KEY HERE>
+  token: <INSERT YOUR KEY HERE>
+  token_secret: <INSERT YOUR KEY HERE>
