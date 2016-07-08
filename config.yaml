@@ -1,3 +1,7 @@
+---
+adapter: sqlite3
+database: flickr.sqlite
+
 oauth:
   consumer_key: <INSERT YOUR KEY HERE>
   consumer_secret: <INSERT YOUR KEY HERE>

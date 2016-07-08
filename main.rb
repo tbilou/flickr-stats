@@ -3,6 +3,18 @@ require 'flickraw-cached'
 require 'csv'
 require 'yaml'
 require 'diskcached'
+require 'active_record'
+require_relative 'Photo'
+
+def writeSQLite(data, config)
+  ActiveRecord::Base.establish_connection(:adapter => config['adapter'], :database => config['database'])
+  ActiveRecord::Base.transaction do
+    data.each do |hash|
+      #photoset | #photo.name | #date | #url
+      Photo.create(:set => hash[:set], :name => hash[:name], :date => hash[:date], :url => hash[:url])
+    end
+  end
+end
 
 def writeCSV(data)
   CSV.open("flickr.csv", "a+") do |csv|
@@ -81,5 +93,9 @@ end
 
 puts "Writting data into a CSV file"
 writeCSV(data)
+
+# write date to DB
+puts "Dumping data into sqlite"
+writeSQLite(data, config)
 
 puts ("All Done!")
