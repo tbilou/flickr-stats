@@ -9,5 +9,5 @@ task :configure_connection do
 desc 'Migrate the database'
   task :migrate => :configure_connection do
     ActiveRecord::Migration.verbose = true
-    ActiveRecord::Migrator.migrate 'db/migrate'
+    ActiveRecord::Migrator.migrate 'db/migrate', ENV['VERSION'] ? ENV['VERSION'].to_i : nil
   end

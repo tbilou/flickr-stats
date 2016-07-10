@@ -7,13 +7,20 @@ require 'active_record'
 require_relative 'Photo'
 
 def writeSQLite(data, config)
+  duplicates = 0
   ActiveRecord::Base.establish_connection(:adapter => config['adapter'], :database => config['database'])
   ActiveRecord::Base.transaction do
     data.each do |hash|
       #photoset | #photo.name | #date | #url
-      Photo.create(:set => hash[:set], :name => hash[:name], :date => hash[:date], :url => hash[:url])
+      begin
+        Photo.create(:photoId => hash[:photoId], :set => hash[:set], :name => hash[:name], :date => hash[:date], :url => hash[:url])
+      rescue ActiveRecord::RecordNotUnique => e
+        # Duplicate key
+        duplicates+=1
+      end
     end
   end
+  puts "Total Photos: #{data.length} | Unique: #{data.length-duplicates}"
 end
 
 def writeCSV(data)
@@ -46,8 +53,31 @@ def getPhotos(set)
   return photos
 end
 
+def getPhotosNotInSets()
+  puts "Getting Photos that are not on a Set"
+  response = @diskcache.cache('notInSets') do
+    flickr.photos.getNotInSet :per_page => 500, :page => 1, :extras => 'date_taken,url_o'
+  end
+
+  photos = response.photo
+  print " | #{response.total} | "
+  if response.pages > 1
+    for i in 2..response.pages
+      print "."
+      response = @diskcache.cache("notInSets#{i}") do
+        # Cache the flickr json response
+        flickr.photos.getNotInSet :per_page => 500, :page => i, :extras => 'date_taken,url_o'
+      end
+      photos += response.photo
+    end
+  end
+  return photos
+end
+
 def getDataFromFlickr()
   data = []
+
+  # Get photos that are on Sets
   sets = @diskcache.cache('photosets') do
     # Cache the flickr json response
     flickr.photosets.getList :user_id => @login.id
@@ -63,10 +93,19 @@ def getDataFromFlickr()
     print " | #{photos.length} \n "
 
     photos.each do |photo|
-      hash = {:set => set.title, :name => photo.title, :date => photo.datetaken, :url => photo['url_o']}
+      hash = {:set => set.title, :name => photo.title, :date => photo.datetaken, :url => photo['url_o'], :photoId => photo['id']}
       data.push(hash)
     end
   end
+
+  # Get photos that are not on a Set
+  photos = getPhotosNotInSets()
+
+  photos.each do |photo|
+    hash = {:set => "Not In a Set", :name => photo.title, :date => photo.datetaken, :url => photo['url_o'], :photoId => photo['id']}
+    data.push(hash)
+  end
+
   return data
 end
 

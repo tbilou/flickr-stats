@@ -5,6 +5,7 @@ gem 'pry'
 
 gem 'flickraw'
 gem 'flickraw-cached'
+gem 'activerecord'
 
 # Caching to disk
 gem 'diskcached'
