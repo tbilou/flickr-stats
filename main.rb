@@ -4,6 +4,7 @@ require 'csv'
 require 'yaml'
 require 'diskcached'
 require 'active_record'
+require 'parallel'
 require_relative 'Photo'
 
 def writeSQLite(data, config)
@@ -11,7 +12,7 @@ def writeSQLite(data, config)
   ActiveRecord::Base.establish_connection(:adapter => config['adapter'], :database => config['database'])
   ActiveRecord::Base.transaction do
     data.each do |hash|
-      #photoset | #photo.name | #date | #url
+      #set | #photo.name | #date | #url
       begin
         Photo.create(:photoId => hash[:photoId], :set => hash[:set], :name => hash[:name], :date => hash[:date], :url => hash[:url])
       rescue ActiveRecord::RecordNotUnique => e
@@ -109,6 +110,37 @@ def getDataFromFlickr()
   return data
 end
 
+def getExifFromPhotos(photos)
+  exifs = []
+  #photos.each do |photo|
+  Parallel.each(photos, :in_processes => 20, progress: "Doing stuff") {
+      |photo|
+   # puts "Item: #{photo[:photoId]}, Worker: #{Parallel.worker_number}"
+    make = 'undefined'
+    model = 'undefined'
+    camera = 'undefined'
+    #puts "======================================================="
+    #puts "ID: #{photo[:photoId]}"
+    #response = @diskcache.cache("exif-#{photo[:photoId]}") do
+      # Cache the flickr json response
+     response = flickr.photos.getExif :photo_id => photo[:photoId]
+    #end
+    #puts pp(response)
+    camera = response["camera"]
+    #puts "CAMERA: #{camera}"
+    # if response["exif"].length > 0
+    #   make = response["exif"][0]["raw"]
+    #   model = response["exif"][1]["raw"]
+    #   puts "#{response["exif"][0]["label"]} : #{response["exif"][0]["raw"]}"
+    #   puts "#{response["exif"][1]["label"]} : #{response["exif"][1]["raw"]}"
+    # end
+    hash = {:photoId => photo[:photoId], :camera => camera, :make => make, :model => model}
+    exifs.push(hash)
+    #end
+  }
+  return exifs
+end
+
 
 # Enable caching to disk the responses from flickr
 @diskcache = Diskcached.new('/tmp/cache', 60*60*24*7) # 7 days worth of cache
@@ -128,6 +160,10 @@ puts "You are now authenticated as #{@login.username}"
 
 data = @diskcache.cache('data') do
   getDataFromFlickr()
+end
+
+exitdata = @diskcache.cache('exif') do
+  getExifFromPhotos(data)
 end
 
 puts "Writting data into a CSV file"

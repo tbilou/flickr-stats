@@ -9,3 +9,7 @@ gem 'activerecord'
 
 # Caching to disk
 gem 'diskcached'
+
+# Make it faster
+gem 'parallel'
+gem 'ruby-progressbar'
